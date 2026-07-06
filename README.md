@@ -8,6 +8,7 @@
 * 🐳 **[Container](./Container)** - 容器相關設定檔（包含 Ollama 部署）。
 * 🛡️ **[Seal RHEL VM](./Seal_RHEL_VM)** - 用於清理並封裝 Red Hat Enterprise Linux (RHEL) 虛擬機範本的腳本。
 * ☸️ **[k8s Environment Init](./k8s_env_init)** - Kubernetes 基礎系統環境建置與初始化腳本。
+* ☸️ **[k8s Install](./k8s_install)** - Kubernetes 叢集部署手冊（CRI-O + Calico / Rocky Linux）。
 * 🔗 **[PVE Link ISO](./pve_link_iso)** - Proxmox VE 中用以連結/下載 ISO 映像檔的腳本。
 
 ---
@@ -30,6 +31,10 @@
 ### ☸️ [k8s Environment Init](./k8s_env_init)
 專門為安裝 Kubernetes (k8s) 前置環境準備的腳本：
 - **`k8s_env_initialization.sh`**: 快速停用 Swap、調整 sysctl 核心參數、安裝必要基礎套件，以符合 Kubernetes 的執行環境要求。
+
+### ☸️ [k8s Install](./k8s_install)
+Kubernetes 叢集部署文件：
+- **`README.md`**: 說明如何在 Rocky Linux 9.8 上以 CRI-O、kubeadm 與 Calico 建置 Kubernetes 1.36 叢集，包含節點規劃、系統前置準備、Control Plane 初始化、Worker 加入與 CNI 安裝流程。
 
 ### 🔗 [PVE Link ISO](./pve_link_iso)
 Proxmox VE 環境下的便利工具：
