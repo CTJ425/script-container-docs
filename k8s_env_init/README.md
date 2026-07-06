@@ -15,8 +15,7 @@
    - RHEL/Rocky 家族：關閉並停用 `firewalld`。
    - Debian/Ubuntu 家族：關閉並停用 `ufw`。
 3. **安全模組設定 (SELinux / AppArmor)**：
-   - **RHEL-compatible 8/9**：使用 `grubby` 加入 `selinux=0` 核心參數，並修改 `/etc/selinux/config` 將 `SELINUX` 設為 `disabled`。
-   - **RHEL-compatible 10+**：由於新版核心棄用完全禁用，腳本不會加入 `selinux=0`，並會自動把 `/etc/selinux/config` 設為 `permissive`（容許模式）。
+   - **RHEL-compatible 家族**：使用 `grubby` 加入 `selinux=0` 核心參數，並修改 `/etc/selinux/config` 將 `SELINUX` 設為 `disabled`。
    - **Debian/Ubuntu 家族**：自動跳過此步驟（因預設使用 K8s 原生相容之 AppArmor，毋需關閉）。
 4. **停用 Swap**：關閉目前啟用的 Swap 分割區，並以冪等方式註解 `/etc/fstab` 中的 swap 載入項目。
 5. **載入核心模組**：建立 `/etc/modules-load.d/crio.conf` 並立即載入 `overlay` 與 `br_netfilter`。
@@ -30,7 +29,8 @@
 
 | 作業系統家族 | 建議/適合版本 | 說明 |
 | :--- | :--- | :--- |
-| **RHEL / Rocky / AlmaLinux / CentOS** | 8.x, 9.x, **10.x** | 企業級常用環境。自 RHEL-compatible 10 起，由於系統核心棄用完全禁用 SELinux，腳本會自動將其設定為 `permissive`（容許模式），其餘版本則維持 `disabled`（停用）。 |
+| **RHEL / Rocky / AlmaLinux / CentOS** | 8.x, 9.x, **10.x** | 企業級常用環境。腳本會透過 `grubby` 加入 `selinux=0` 核心參數，並將 `/etc/selinux/config` 設為 `SELINUX=disabled`。 |
+| **Fedora** | Current supported releases | RHEL-like 家族。腳本會套用與 RHEL-compatible 相同的 SELinux、防火牆、swap、kernel module 與 sysctl 設定。 |
 | **Ubuntu** | 20.04 LTS, 22.04 LTS, **24.04 LTS 及以後版本 (例如 24.10, 26.04)** | 社群最常用發行版。不使用 `grubby`，且預設使用 AppArmor (Kubernetes 原生支援，腳本會自動跳過 SELinux 停用步驟，亦不需手動關閉 AppArmor)。 |
 | **Debian** | 11 (Bullseye), 12 (Bookworm), **13 (Trixie)** | 輕量且穩定。環境設定原則與 Ubuntu 相同，腳本會自動識別並處理。 |
 
@@ -70,9 +70,7 @@ sudo ./k8s_env_initialization.sh
 腳本在偵測到 RHEL-compatible 家族後會自動執行：
 
 1. 停用並 disable `firewalld`。
-2. 依主版本處理 SELinux：
-   - 8.x / 9.x：使用 `grubby` 加入 `selinux=0`，並將 `/etc/selinux/config` 設為 `SELINUX=disabled`。
-   - 10.x 及以後版本：不加入 `selinux=0`，並將 `/etc/selinux/config` 設為 `SELINUX=permissive`。
+2. 停用 SELinux：使用 `grubby` 加入 `selinux=0`，並將 `/etc/selinux/config` 設為 `SELINUX=disabled`。
 3. 關閉目前啟用的 swap，並註解 `/etc/fstab` 中的 swap 項目。
 4. 載入 `overlay` 與 `br_netfilter` kernel modules。
 5. 寫入並套用 Kubernetes 所需 sysctl 參數。
@@ -85,16 +83,10 @@ sudo systemctl stop firewalld
 sudo systemctl disable firewalld
 ```
 
-### 2. 設定 SELinux
-RHEL-compatible 8.x / 9.x：
+### 2. 停用 SELinux
 ```bash
 sudo grubby --update-kernel ALL --args selinux=0
 sudo sed -i 's/^SELINUX=.*/SELINUX=disabled/g' /etc/selinux/config
-```
-
-RHEL-compatible 10.x 及以後版本：
-```bash
-sudo sed -i 's/^SELINUX=.*/SELINUX=permissive/g' /etc/selinux/config
 ```
 
 ### 3. 關閉 Swap
@@ -166,7 +158,7 @@ sudo sed -r -i.bak '/\s+swap\s+/s/^#*/#/' /etc/fstab
 ### 3. 載入必要核心模組
 ```bash
 # 建立載入設定檔
-sudo tee /etc/modules-load.d/k8s.conf <<EOF
+sudo tee /etc/modules-load.d/crio.conf <<EOF
 overlay
 br_netfilter
 EOF
@@ -199,7 +191,7 @@ sudo sysctl --system
 - 語法檢查：`bash -n k8s_env_initialization.sh` 通過
 - `shellcheck k8s_env_initialization.sh` 通過
 - 已修正 OS 判斷流程：無法識別的 Linux 發行版會中止，不會誤走 RHEL/firewalld 分支。
-- 已修正 RHEL-compatible 10+ 的 SELinux 流程：只設定 `SELINUX=permissive`，不再加入會完全停用 SELinux 的 `selinux=0` kernel argument。
+- 已修正 RHEL-compatible SELinux 流程：所有 RHEL-compatible 版本皆透過 `grubby` 加入 `selinux=0`，並將 `/etc/selinux/config` 設為 `SELINUX=disabled`。
 - 已修正執行順序問題：腳本會先載入 `br_netfilter`，再執行 `sysctl --system`。部分系統在 `br_netfilter` 尚未載入時不會存在 `net.bridge.*` sysctl key，可能導致腳本在 `set -e` 下中斷。
 
 ## 注意事項

@@ -16,21 +16,6 @@ OS_VERSION=""
 OS_ID=""
 OS_ID_LIKE=""
 
-get_os_major_version() {
-    if [[ "$OS_VERSION" =~ ^([0-9]+) ]]; then
-        echo "${BASH_REMATCH[1]}"
-    fi
-}
-
-is_rhel_compatible_10_or_newer() {
-    local major_version
-    major_version="$(get_os_major_version)"
-
-    [[ "$OS_ID" =~ ^(rhel|rocky|almalinux|centos)$ ]] &&
-        [ -n "$major_version" ] &&
-        [ "$major_version" -ge 10 ]
-}
-
 # Function: Detect Operating System
 detect_os() {
     echo "=== Detecting Operating System ==="
@@ -88,26 +73,19 @@ disable_firewall() {
 # Function: Disable SELinux
 disable_selinux() {
     if [ "$OS_FAMILY" = "rhel" ]; then
-        local selinux_target="disabled"
-
-        echo "=== 2. Configuring SELinux ==="
-        if is_rhel_compatible_10_or_newer; then
-            echo "RHEL-compatible 10+ detected. Setting SELinux to permissive instead of disabled."
-            selinux_target="permissive"
+        echo "=== 2. Disabling SELinux ==="
+        # Disable SELinux at boot by adding the kernel argument.
+        if command -v grubby >/dev/null 2>&1; then
+            grubby --update-kernel ALL --args selinux=0
+            echo "Updated kernel arguments via grubby to include 'selinux=0'."
         else
-            # Update kernel arguments via grubby if grubby is available
-            if command -v grubby >/dev/null 2>&1; then
-                grubby --update-kernel ALL --args selinux=0
-                echo "Updated kernel arguments via grubby to include 'selinux=0'."
-            else
-                echo "grubby not found. Skipping grubby update."
-            fi
+            echo "grubby not found. Skipping kernel argument update."
         fi
 
         # Update /etc/selinux/config if it exists
         if [ -f /etc/selinux/config ]; then
-            sed -i "s/^SELINUX=.*/SELINUX=$selinux_target/g" /etc/selinux/config || true
-            echo "Updated /etc/selinux/config to SELINUX=$selinux_target."
+            sed -i "s/^SELINUX=.*/SELINUX=disabled/g" /etc/selinux/config || true
+            echo "Updated /etc/selinux/config to SELINUX=disabled."
         fi
         echo "SELinux settings updated. A reboot is required to fully apply changes."
         echo ""
@@ -207,15 +185,8 @@ verify_security_module() {
         return
     fi
 
-    local expected_selinux
     local config_selinux="missing"
     local runtime_selinux="unknown"
-
-    if is_rhel_compatible_10_or_newer; then
-        expected_selinux="permissive"
-    else
-        expected_selinux="disabled"
-    fi
 
     if [ -f /etc/selinux/config ]; then
         config_selinux="$(awk -F= '/^SELINUX=/{print $2; exit}' /etc/selinux/config)"
@@ -225,23 +196,19 @@ verify_security_module() {
         runtime_selinux="$(getenforce 2>/dev/null || true)"
     fi
 
-    if [ "$config_selinux" = "$expected_selinux" ]; then
+    if [ "$config_selinux" = "disabled" ]; then
         print_check "OK" "SELinux config" "SELINUX=$config_selinux."
     else
-        print_check "WARN" "SELinux config" "expected SELINUX=$expected_selinux, current SELINUX=$config_selinux."
+        print_check "WARN" "SELinux config" "expected SELINUX=disabled, current SELINUX=$config_selinux."
     fi
 
-    if [ "$expected_selinux" = "disabled" ]; then
-        if command -v grubby >/dev/null 2>&1 &&
-            grubby --info=ALL 2>/dev/null | grep -q 'selinux=0'; then
-            print_check "OK" "SELinux kernel argument" "selinux=0 found; reboot is required to apply fully."
-        elif command -v grubby >/dev/null 2>&1; then
-            print_check "WARN" "SELinux kernel argument" "selinux=0 not found in grubby output."
-        else
-            print_check "WARN" "SELinux kernel argument" "grubby not found; kernel argument was not verified."
-        fi
+    if command -v grubby >/dev/null 2>&1 &&
+        grubby --info=ALL 2>/dev/null | grep -q 'selinux=0'; then
+        print_check "OK" "SELinux kernel argument" "selinux=0 found; reboot is required to apply fully."
+    elif command -v grubby >/dev/null 2>&1; then
+        print_check "WARN" "SELinux kernel argument" "selinux=0 not found in grubby output."
     else
-        print_check "OK" "SELinux kernel argument" "RHEL-compatible 10+ uses permissive mode; selinux=0 is not required."
+        print_check "WARN" "SELinux kernel argument" "grubby not found; kernel argument was not verified."
     fi
 
     print_check "INFO" "SELinux runtime" "current runtime state: $runtime_selinux; reboot may be required."
