@@ -70,7 +70,7 @@ disable_firewall() {
     echo ""
 }
 
-# Function: Disable SELinux
+# Function: Disable SELinux through kernel argument
 disable_selinux() {
     if [ "$OS_FAMILY" = "rhel" ]; then
         echo "=== 2. Disabling SELinux ==="
@@ -78,16 +78,12 @@ disable_selinux() {
         if command -v grubby >/dev/null 2>&1; then
             grubby --update-kernel ALL --args selinux=0
             echo "Updated kernel arguments via grubby to include 'selinux=0'."
+            echo "A reboot is required to fully apply SELinux changes."
         else
-            echo "grubby not found. Skipping kernel argument update."
+            echo "grubby not found. This RHEL/Rocky family system does not have grubby installed." >&2
+            echo "Cannot continue because SELinux kernel argument selinux=0 was not configured." >&2
+            exit 1
         fi
-
-        # Update /etc/selinux/config if it exists
-        if [ -f /etc/selinux/config ]; then
-            sed -i "s/^SELINUX=.*/SELINUX=disabled/g" /etc/selinux/config || true
-            echo "Updated /etc/selinux/config to SELINUX=disabled."
-        fi
-        echo "SELinux settings updated. A reboot is required to fully apply changes."
         echo ""
     else
         echo "=== 2. Skipping SELinux Disabling ==="
@@ -185,21 +181,10 @@ verify_security_module() {
         return
     fi
 
-    local config_selinux="missing"
     local runtime_selinux="unknown"
-
-    if [ -f /etc/selinux/config ]; then
-        config_selinux="$(awk -F= '/^SELINUX=/{print $2; exit}' /etc/selinux/config)"
-    fi
 
     if command -v getenforce >/dev/null 2>&1; then
         runtime_selinux="$(getenforce 2>/dev/null || true)"
-    fi
-
-    if [ "$config_selinux" = "disabled" ]; then
-        print_check "OK" "SELinux config" "SELINUX=$config_selinux."
-    else
-        print_check "WARN" "SELinux config" "expected SELINUX=disabled, current SELINUX=$config_selinux."
     fi
 
     if command -v grubby >/dev/null 2>&1 &&
@@ -308,7 +293,13 @@ main() {
         reboot_prompt="Reboot now to apply all changes (especially for SELinux)? (y/n): "
     fi
 
-    read -r -p "$reboot_prompt" reboot_confirm
+    if [ -t 0 ]; then
+        read -r -p "$reboot_prompt" reboot_confirm
+    else
+        echo "Non-interactive shell detected. Skipping reboot prompt."
+        reboot_confirm="n"
+    fi
+
     # Convert input to lowercase for comparison
     if [[ "${reboot_confirm,,}" == "y" || "${reboot_confirm,,}" == "yes" ]]; then
         echo "Rebooting..."

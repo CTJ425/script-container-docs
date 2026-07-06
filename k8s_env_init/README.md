@@ -15,7 +15,7 @@
    - RHEL/Rocky 家族：關閉並停用 `firewalld`。
    - Debian/Ubuntu 家族：關閉並停用 `ufw`。
 3. **安全模組設定 (SELinux / AppArmor)**：
-   - **RHEL-compatible 家族**：使用 `grubby` 加入 `selinux=0` 核心參數，並修改 `/etc/selinux/config` 將 `SELINUX` 設為 `disabled`。
+   - **RHEL-compatible 家族**：使用 `grubby` 加入 `selinux=0` 核心參數，於下次開機時從 kernel 層停用 SELinux。
    - **Debian/Ubuntu 家族**：自動跳過此步驟（因預設使用 K8s 原生相容之 AppArmor，毋需關閉）。
 4. **停用 Swap**：關閉目前啟用的 Swap 分割區，並以冪等方式註解 `/etc/fstab` 中的 swap 載入項目。
 5. **載入核心模組**：建立 `/etc/modules-load.d/crio.conf` 並立即載入 `overlay` 與 `br_netfilter`。
@@ -29,7 +29,7 @@
 
 | 作業系統家族 | 建議/適合版本 | 說明 |
 | :--- | :--- | :--- |
-| **RHEL / Rocky / AlmaLinux / CentOS** | 8.x, 9.x, **10.x** | 企業級常用環境。腳本會透過 `grubby` 加入 `selinux=0` 核心參數，並將 `/etc/selinux/config` 設為 `SELINUX=disabled`。 |
+| **RHEL / Rocky / AlmaLinux / CentOS** | 8.x, 9.x, **10.x** | 企業級常用環境。腳本會透過 `grubby` 加入 `selinux=0` 核心參數，於下次開機時從 kernel 層停用 SELinux。 |
 | **Fedora** | Current supported releases | RHEL-like 家族。腳本會套用與 RHEL-compatible 相同的 SELinux、防火牆、swap、kernel module 與 sysctl 設定。 |
 | **Ubuntu** | 20.04 LTS, 22.04 LTS, **24.04 LTS 及以後版本 (例如 24.10, 26.04)** | 社群最常用發行版。不使用 `grubby`，且預設使用 AppArmor (Kubernetes 原生支援，腳本會自動跳過 SELinux 停用步驟，亦不需手動關閉 AppArmor)。 |
 | **Debian** | 11 (Bullseye), 12 (Bookworm), **13 (Trixie)** | 輕量且穩定。環境設定原則與 Ubuntu 相同，腳本會自動識別並處理。 |
@@ -59,6 +59,8 @@ sudo ./k8s_env_initialization.sh
 
 腳本執行完成後建議重新開機，使部分核心參數與安全模組設定（如 SELinux）完整生效。
 
+若使用 `curl ... | sudo bash` 這類非互動管線方式執行，腳本會跳過重開機詢問；請在完成後自行重新開機。
+
 腳本在詢問是否重新開機前，會先輸出 `Verification Summary`，逐項顯示目前抓取到的 OS 與各調整項目的驗證結果。標示為 `OK` 的項目代表目前檢查通過；標示為 `WARN` 的項目代表未生效、無法驗證，或需要重開機後才會完整套用。
 
 ---
@@ -70,7 +72,7 @@ sudo ./k8s_env_initialization.sh
 腳本在偵測到 RHEL-compatible 家族後會自動執行：
 
 1. 停用並 disable `firewalld`。
-2. 停用 SELinux：使用 `grubby` 加入 `selinux=0`，並將 `/etc/selinux/config` 設為 `SELINUX=disabled`。
+2. 停用 SELinux：使用 `grubby` 加入 `selinux=0` 核心參數。
 3. 關閉目前啟用的 swap，並註解 `/etc/fstab` 中的 swap 項目。
 4. 載入 `overlay` 與 `br_netfilter` kernel modules。
 5. 寫入並套用 Kubernetes 所需 sysctl 參數。
@@ -86,7 +88,6 @@ sudo systemctl disable firewalld
 ### 2. 停用 SELinux
 ```bash
 sudo grubby --update-kernel ALL --args selinux=0
-sudo sed -i 's/^SELINUX=.*/SELINUX=disabled/g' /etc/selinux/config
 ```
 
 ### 3. 關閉 Swap
@@ -191,7 +192,7 @@ sudo sysctl --system
 - 語法檢查：`bash -n k8s_env_initialization.sh` 通過
 - `shellcheck k8s_env_initialization.sh` 通過
 - 已修正 OS 判斷流程：無法識別的 Linux 發行版會中止，不會誤走 RHEL/firewalld 分支。
-- 已修正 RHEL-compatible SELinux 流程：所有 RHEL-compatible 版本皆透過 `grubby` 加入 `selinux=0`，並將 `/etc/selinux/config` 設為 `SELINUX=disabled`。
+- 已修正 RHEL-compatible SELinux 流程：所有 RHEL-compatible 版本皆透過 `grubby` 加入 `selinux=0` 核心參數，不再同步修改 `/etc/selinux/config`。
 - 已修正執行順序問題：腳本會先載入 `br_netfilter`，再執行 `sysctl --system`。部分系統在 `br_netfilter` 尚未載入時不會存在 `net.bridge.*` sysctl key，可能導致腳本在 `set -e` 下中斷。
 
 ## 注意事項
@@ -199,5 +200,5 @@ sudo sysctl --system
 - 腳本會修改系統層級設定，請只在準備作為 Kubernetes 節點的主機上執行。
 - `/etc/fstab` 會被原地修改，並產生 `/etc/fstab.bak` 備份。
 - `firewalld` 或 `ufw` 不存在或已停用時，腳本會輸出提示並繼續。
-- `grubby` 不存在時，腳本會跳過 kernel argument 更新並繼續；`swapoff`、`sysctl`、`modprobe` 任一必要指令失敗時，腳本會因為 `set -e` 中止。
+- RHEL-compatible 主機若未安裝 `grubby`，腳本會直接中止，因為無法寫入 `selinux=0` kernel argument；`swapoff`、`sysctl`、`modprobe` 任一必要指令失敗時，腳本也會因為 `set -e` 中止。
 - 腳本不會安裝 container runtime、`kubelet`、`kubeadm` 或 `kubectl`，只負責 Kubernetes 前置系統設定。
