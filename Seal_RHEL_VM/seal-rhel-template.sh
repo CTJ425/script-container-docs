@@ -107,8 +107,14 @@ confirm_run() {
     return 0
   fi
 
-  printf 'This will seal this VM as a template and remove machine-specific data. Continue? [y/N] '
-  read -r answer
+  if [ ! -r /dev/tty ] || [ ! -w /dev/tty ]; then
+    die "No interactive terminal available. Re-run with --yes for non-interactive execution."
+  fi
+
+  printf 'This will seal this VM as a template and remove machine-specific data. Continue? [y/N] ' > /dev/tty
+  if ! read -r answer < /dev/tty; then
+    die "Could not read confirmation from /dev/tty. Re-run with --yes for non-interactive execution."
+  fi
   case "$answer" in
     y|Y|yes|YES) ;;
     *) die "Cancelled by user." ;;
@@ -148,9 +154,19 @@ clean_network_identity() {
 }
 
 clean_hosts_resolver() {
-  log "Clearing /etc/hosts and /etc/resolv.conf content."
-  run_shell_required ": > /etc/hosts"
-  run_shell_required ": > /etc/resolv.conf"
+  log "Resetting /etc/hosts loopback entries and clearing /etc/resolv.conf content."
+  run_shell_required "cat > /etc/hosts <<'EOF'
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+EOF"
+
+  if [ -L /etc/resolv.conf ]; then
+    run_required rm -f /etc/resolv.conf
+    run_required touch /etc/resolv.conf
+    run_required chmod 644 /etc/resolv.conf
+  else
+    run_shell_required ": > /etc/resolv.conf"
+  fi
 }
 
 clean_hostname() {
@@ -166,8 +182,9 @@ clean_ssh_host_keys() {
 clean_machine_id() {
   log "Resetting machine-id for RHEL compatible $OS_MAJOR."
 
+  run_required rm -f /var/lib/dbus/machine-id
+
   if [ "$OS_MAJOR" = "8" ]; then
-    run_required rm -f /var/lib/dbus/machine-id
     run_shell_required "printf 'uninitialized\n' > /etc/machine-id"
   else
     run_required rm -f /etc/machine-id
