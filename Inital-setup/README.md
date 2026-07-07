@@ -11,6 +11,7 @@
 - [適用環境與注意事項](#適用環境與注意事項)
 - [檔案結構](#檔案結構)
 - [部署步驟](#部署步驟)
+- [快速部署](#快速部署)
 - [使用方式](#使用方式)
 
 ## 專案說明
@@ -24,7 +25,7 @@
 * **自動觸發**：僅在 `root` 使用者首次登入時執行。
 * **互動式介面**：透過簡單的 CLI 對話視窗引導設定。
 * **主機名稱設定**：使用 `hostnamectl` 立即修改系統名稱。
-* **網路設定**：整合 `nmcli`，支援 DHCP 與 Static IP (IPv4) 設定。
+* **固定 IP 設定**：整合 `nmcli`，不論目前網卡是 DHCP 或已設定過 Static IP，都會引導使用者調整並套用 Static IPv4。
 * **防止重複執行**：設定完成後自動建立旗標檔案，防止二次干擾。
 
 ## 適用環境與注意事項
@@ -51,6 +52,24 @@
 ## 部署步驟
 
 請依照以下步驟將腳本部署至您的「母版 (Master Image)」或「範本機器」中。
+
+### 快速部署
+
+若機器可以連線到 GitHub，可直接複製以下指令下載並安裝：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/CTJ425/script-container-docs/main/Inital-setup/initial-setup.sh -o /usr/local/bin/initial-setup.sh
+chmod +x /usr/local/bin/initial-setup.sh
+curl -fsSL https://raw.githubusercontent.com/CTJ425/script-container-docs/main/Inital-setup/99-firstboot.sh -o /etc/profile.d/99-firstboot.sh
+chmod +x /etc/profile.d/99-firstboot.sh
+rm -f /etc/firstboot_completed
+```
+
+若要在目前機器立刻執行初始化精靈，可使用：
+
+```bash
+/usr/local/bin/initial-setup.sh
+```
 
 ### 1. 安裝主設定腳本
 將 `initial-setup.sh` 複製到系統路徑並賦予執行權限：
