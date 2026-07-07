@@ -4,6 +4,7 @@
 
 ## 快速連結 (Quick Links)
 
+* 📦 **[RHEL-Family-Temp](./RHEL-Family-Temp)** - RHEL/Rocky VM 範本整合封裝與首次開機引導設定套件（一鍵封裝與開箱即用設定）。
 * 🛠️ **[Inital-setup](./Inital-setup)** - 系統安裝後的基礎初始化與首次開機設定腳本。
 * 🐳 **[Container](./Container)** - 容器相關設定檔（包含 Ollama 部署）。
 * 🛡️ **[Seal RHEL VM](./Seal_RHEL_VM)** - 用於清理並封裝 Red Hat Enterprise Linux (RHEL) 虛擬機範本的腳本。
@@ -27,6 +28,12 @@
 ### 🛡️ [Seal RHEL VM](./Seal_RHEL_VM)
 針對 RHEL 虛擬機模版化（Template）的腳本：
 - **`seal-rhel-template.sh`**: 清理系統殘留的暫存、機器 ID (machine-id)、網卡 UUID 及歷史紀錄，以便於安全地複製與封裝為金鑰模版。
+
+### 📦 [RHEL-Family-Temp](./RHEL-Family-Temp)
+整合虛擬機安全封裝與開機引導設定的一體化解決方案：
+- **`seal-rhel-template.sh`**: 整合式一鍵封裝主腳本（自動清理並裝載設定檔）。
+- **`initial-setup.sh`**: 首次開機引導設定精靈（引導設定主機名稱與靜態 IPv4 網路卡）。
+- **`99-firstboot.sh`**: profile 登入觸發器（偵測互動式本地 TTY 登入以執行引導精靈）。
 
 ### ☸️ [k8s Environment Init](./k8s_env_init)
 專門為安裝 Kubernetes (k8s) 前置環境準備的腳本：
