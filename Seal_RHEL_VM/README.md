@@ -8,6 +8,7 @@
 | 2026/06/25 | Ivan Chen | 強化 OS 判斷與必要清理步驟錯誤處理 |
 | 2026/06/25 | Ivan Chen | 補強 NetworkManager 介面名稱綁定清理 |
 | 2026/06/25 | Ivan Chen | 補充 RHEL/Rocky 10.x 支援與 Satellite 套件偵測修正 |
+| 2026/07/07 | Ivan Chen | 補充 curl 直接執行方式 |
 
 # 適用版本
 
@@ -26,7 +27,55 @@
 
 # 使用方式
 
-先將 script 複製到要封裝成範本的 VM，並確認使用 root 權限執行。
+## curl 直接執行
+
+可直接在要封裝成範本的 VM 上透過 `curl` 下載並執行，script 會由 `sudo bash` 以 root 權限執行。
+
+建議先使用 `--dry-run` 確認會執行的動作：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/CTJ425/script-container-docs/main/Seal_RHEL_VM/seal-rhel-template.sh | sudo bash -s -- --dry-run
+```
+
+確認後可執行互動式清理，script 會在清理前詢問是否繼續：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/CTJ425/script-container-docs/main/Seal_RHEL_VM/seal-rhel-template.sh | sudo bash
+```
+
+非互動式執行時請加入 `--yes`，script 不會停下來等待確認，適合自動化流程使用：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/CTJ425/script-container-docs/main/Seal_RHEL_VM/seal-rhel-template.sh | sudo bash -s -- --yes
+```
+
+如果要在清理完成後自動關機：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/CTJ425/script-container-docs/main/Seal_RHEL_VM/seal-rhel-template.sh | sudo bash -s -- --yes --poweroff
+```
+
+`bash` 與 `bash -s --` 的差異：
+
+- 不需要傳入參數時，可以直接使用 `curl ... | sudo bash`，script 會以互動式模式執行。
+- 需要傳入 `--dry-run`、`--yes`、`--poweroff` 等 script 參數時，請使用 `sudo bash -s --`。
+
+`bash -s --` 的用途如下：
+
+- `-s`：要求 `bash` 從標準輸入讀取 script，也就是執行 `curl` 下載下來的內容。
+- `--`：結束 `bash` 自己的參數解析，後面的 `--dry-run`、`--yes`、`--poweroff` 會傳給 `seal-rhel-template.sh`。
+
+如果沒有加入 `-s`，例如：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/CTJ425/script-container-docs/main/Seal_RHEL_VM/seal-rhel-template.sh | sudo bash -- --yes
+```
+
+`bash` 會把 `--yes` 當成要執行的檔案名稱，而不是傳給 script 的參數，因此不會正確執行 `curl` 下載的 script。
+
+## 手動下載執行
+
+也可以先將 script 複製到要封裝成範本的 VM，並確認使用 root 權限執行。
 
 ```bash
 chmod +x seal-rhel-template.sh
