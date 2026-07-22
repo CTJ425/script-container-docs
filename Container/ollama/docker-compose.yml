@@ -1,8 +1,11 @@
+# CPU-only 主機請搭配 cpu 設定檔執行：
+# docker compose -f docker-compose.yml -f docker-compose.cpu.yml up -d
+
 services:
   ollama:
     container_name: ollama
     restart: unless-stopped
-    image: ollama/ollama:latest
+    image: ollama/ollama:0.32.2
     ports:
       - 11434:11434
     volumes:
@@ -18,7 +21,7 @@ services:
   open-webui:
     container_name: openwebui
     restart: unless-stopped
-    image: ghcr.io/open-webui/open-webui:main
+    image: ghcr.io/open-webui/open-webui:v0.10.2
     ports:
       - 8080:8080
     volumes:

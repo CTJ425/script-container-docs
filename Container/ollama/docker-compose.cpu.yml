@@ -1,0 +1,7 @@
+# CPU-only 主機請搭配主設定檔執行：
+# docker compose -f docker-compose.yml -f docker-compose.cpu.yml up -d
+# 注意：!reset 語法需要 Docker Compose v2.24 以上版本
+
+services:
+  ollama:
+    deploy: !reset {}

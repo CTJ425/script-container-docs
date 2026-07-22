@@ -5,9 +5,7 @@
 ## 快速連結 (Quick Links)
 
 * 📦 **[RHEL-Family-Temp](./RHEL-Family-Temp)** - RHEL/Rocky VM 範本整合封裝與首次開機引導設定套件（一鍵封裝與開箱即用設定）。
-* 🛠️ **[Inital-setup](./Inital-setup)** - 系統安裝後的基礎初始化與首次開機設定腳本。
 * 🐳 **[Container](./Container)** - 容器相關設定檔（包含 Ollama 部署）。
-* 🛡️ **[Seal RHEL VM](./Seal_RHEL_VM)** - 用於清理並封裝 Red Hat Enterprise Linux (RHEL) 虛擬機範本的腳本。
 * ☸️ **[k8s Environment Init](./k8s_env_init)** - Kubernetes 基礎系統環境建置與初始化腳本。
 * ☸️ **[k8s Install](./k8s_install)** - Kubernetes 叢集部署手冊（CRI-O + Calico / Rocky Linux）。
 * 🔗 **[PVE Link ISO](./pve_link_iso)** - Proxmox VE 中用以連結/下載 ISO 映像檔的腳本。
@@ -16,18 +14,9 @@
 
 ## 模組說明 (Modules Summary)
 
-### 🛠️ [Inital-setup](./Inital-setup)
-包含作業系統安裝完成後的自動化腳本：
-- **`initial-setup.sh`**: 基礎系統設定（如語系、時區、套件更新等）。
-- **`99-firstboot.sh`**: 針對虛擬機首次啟動時所進行的客製化環境調整。
-
 ### 🐳 [Container](./Container)
 提供容器化服務的部署定義檔：
 - **`ollama/docker-compose.yml`**: 可快速建立 Ollama 服務，執行本地的大型語言模型 (LLM)。
-
-### 🛡️ [Seal RHEL VM](./Seal_RHEL_VM)
-針對 RHEL 虛擬機模版化（Template）的腳本：
-- **`seal-rhel-template.sh`**: 清理系統殘留的暫存、機器 ID (machine-id)、網卡 UUID 及歷史紀錄，以便於安全地複製與封裝為金鑰模版。
 
 ### 📦 [RHEL-Family-Temp](./RHEL-Family-Temp)
 整合虛擬機安全封裝與開機引導設定的一體化解決方案：
@@ -46,6 +35,32 @@ Kubernetes 叢集部署文件：
 ### 🔗 [PVE Link ISO](./pve_link_iso)
 Proxmox VE 環境下的便利工具：
 - **`pve_link_iso.sh`**: 用以軟連結或是自動同步/下載 ISO 映像檔至 PVE 的存放目錄，簡化系統安裝的前置流程。
+
+---
+
+## 異動紀錄 (Changelog)
+
+### 2026-07-22 — 全專案腳本審查、修正與舊版清理
+
+本次異動由 AI 交叉審查流程完成（agy/Gemini 審查與修改 → Claude 逐項驗證裁決與獨立 code review），
+完整報告見 [`docs/`](./docs)（`01`–`04` 為 agy 原始審查報告，`05_verification_report.md` / `.html` 為驗證與修正結果報告）。
+
+**腳本修正：**
+- `RHEL-Family-Temp/initial-setup.sh`（含 `seal-rhel-template.sh` 內嵌副本同步）：
+  - 新增 `/run/initial-setup.lock` 原子併發鎖，防止多重登入同時觸發設定精靈
+  - 單一網卡環境自動選取，不再要求手動輸入
+  - DNS 輸入轉換後修剪首尾空白
+  - `/etc/hosts` 主機名稱更新改用 word-boundary 匹配：移除舊主機名、防止相似字首誤判與重複累積
+- `RHEL-Family-Temp/seal-rhel-template.sh`：
+  - OS 偵測顯式加入 `almalinux`（文件化，原本經 `ID_LIKE` 已可通過）
+  - RHEL 8 的 machine-id 重置改為空檔（systemd 239 相容）；RHEL 9/10 維持 `uninitialized`（systemd first-boot 官方機制）
+- `pve_link_iso/pve_link_iso.sh`：同名 ISO 跳過時顯示明確警告（含完整來源路徑），並新增獨立跳過計數
+- `Container/ollama/docker-compose.yml`：映像鎖定版本（`ollama/ollama:0.32.2`、`open-webui:v0.10.2`）
+- `Container/ollama/docker-compose.cpu.yml`：**新增** CPU-only override（需 Docker Compose ≥ v2.24）
+
+**舊版清理：**
+- 刪除封存舊版目錄 `Inital-setup/`、`Seal_RHEL_VM/`、`pve_link_iso/Old/`
+  （功能均已由 `RHEL-Family-Temp/` 與 `pve_link_iso/pve_link_iso.sh` 現行版取代，移除以避免審查與維護混淆）
 
 ---
 

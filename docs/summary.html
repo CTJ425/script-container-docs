@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>自動化腳本與系統配置程式碼審查綜合報告 | Script Audit & Architecture Dashboard</title>
+  <!-- Google Fonts: Inter & Fira Code -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0b0f19;
+      --bg-secondary: #111827;
+      --bg-card: #1f2937;
+      --bg-card-hover: #374151;
+      --border-color: rgba(255, 255, 255, 0.08);
+      --accent-primary: #6366f1;
+      --accent-primary-hover: #4f46e5;
+      --accent-cyan: #06b6d4;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --text-main: #f9fafb;
+      --text-muted: #9ca3af;
+      --text-dim: #6b7280;
+      --glass-bg: rgba(17, 24, 39, 0.75);
+      --glass-border: rgba(255, 255, 255, 0.1);
+      --shadow-glow: 0 0 25px rgba(99, 102, 241, 0.25);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Background Glow Effects */
+    .bg-glow-1 {
+      position: fixed;
+      top: -10%;
+      left: -10%;
+      width: 50vw;
+      height: 50vw;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(0,0,0,0) 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .bg-glow-2 {
+      position: fixed;
+      bottom: -10%;
+      right: -10%;
+      width: 50vw;
+      height: 50vw;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.12) 0%, rgba(0,0,0,0) 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Layout Structure */
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--glass-border);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-cyan));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.25rem;
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    }
+    .brand-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      background: linear-gradient(to right, #fff, #9ca3af);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .nav-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .nav-btn:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .nav-btn.active {
+      color: #fff;
+      background: rgba(99, 102, 241, 0.2);
+      border-color: rgba(99, 102, 241, 0.4);
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 2rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Hero Section */
+    .hero-card {
+      background: linear-gradient(135deg, rgba(31, 41, 55, 0.8), rgba(17, 24, 39, 0.9));
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 2.5rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(to right, var(--accent-primary), var(--accent-cyan), var(--accent-emerald));
+    }
+    .hero-title {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.025em;
+    }
+    .hero-subtitle {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      max-width: 900px;
+      margin-bottom: 1.5rem;
+    }
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      font-size: 0.875rem;
+      color: var(--text-dim);
+    }
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .meta-item span {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    /* Metric Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 2rem;
+    }
+    .metric-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.25rem;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .metric-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    .metric-header {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+    .metric-value {
+      font-size: 2rem;
+      font-weight: 800;
+    }
+    .metric-desc {
+      font-size: 0.775rem;
+      color: var(--text-dim);
+      margin-top: 0.25rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.025em;
+      text-transform: uppercase;
+    }
+    .badge-critical { background: rgba(244, 63, 94, 0.15); color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.3); }
+    .badge-medium { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-low { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-info { background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); }
+
+    /* Section Components */
+    .section-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .section-title::before {
+      content: '';
+      width: 4px;
+      height: 1.25rem;
+      background: var(--accent-primary);
+      border-radius: 2px;
+    }
+
+    /* Filter Bar */
+    .filter-bar {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .filter-chip {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 0.4rem 0.9rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .filter-chip:hover {
+      border-color: rgba(255, 255, 255, 0.3);
+      color: #fff;
+    }
+    .filter-chip.active {
+      background: var(--accent-primary);
+      color: #fff;
+      border-color: var(--accent-primary);
+    }
+
+    /* Script Review Cards */
+    .script-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.5rem;
+      margin-bottom: 3rem;
+    }
+    .script-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 1.5rem;
+      transition: border-color 0.2s ease;
+    }
+    .script-card:hover {
+      border-color: rgba(99, 102, 241, 0.3);
+    }
+    .script-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .script-path {
+      font-family: 'Fira Code', monospace;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--accent-cyan);
+    }
+    .script-desc {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 1rem;
+    }
+
+    .issue-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+    .issue-item {
+      background: rgba(31, 41, 55, 0.5);
+      border-left: 3px solid var(--accent-primary);
+      border-radius: 0 8px 8px 0;
+      padding: 0.85rem 1rem;
+    }
+    .issue-item.critical { border-left-color: var(--accent-rose); }
+    .issue-item.medium { border-left-color: var(--accent-amber); }
+    .issue-item.low { border-left-color: var(--accent-emerald); }
+
+    .issue-title {
+      font-weight: 600;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.25rem;
+    }
+    .issue-detail {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+    }
+
+    /* Markdown File Link Grid */
+    .docs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+      margin-bottom: 3rem;
+    }
+    .doc-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-decoration: none;
+      color: inherit;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .doc-card:hover {
+      border-color: var(--accent-primary);
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-glow);
+    }
+    .doc-icon {
+      font-size: 1.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .doc-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+      color: #fff;
+    }
+    .doc-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .doc-link {
+      margin-top: 1rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--accent-primary);
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    /* Code Snippet Box */
+    .code-box {
+      background: #0d1117;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      color: #e6edf3;
+      overflow-x: auto;
+      margin-top: 0.75rem;
+    }
+    .code-comment { color: #8b949e; }
+    .code-keyword { color: #ff7b72; }
+    .code-function { color: #d2a8ff; }
+    .code-string { color: #a5d6ff; }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border-color);
+      padding: 2rem;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 0.85rem;
+    }
+
+    /* Tab Content Control */
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg-glow-1"></div>
+  <div class="bg-glow-2"></div>
+
+  <!-- Header / Navigation -->
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-icon">S</div>
+      <div>
+        <div class="brand-title">Script Container Docs Audit</div>
+        <div style="font-size: 0.75rem; color: var(--text-dim);">Enterprise Automation Code Review</div>
+      </div>
+    </div>
+    <nav class="nav-links">
+      <button class="nav-btn active" onclick="switchTab('dashboard')">總覽 Dashboard</button>
+      <button class="nav-btn" onclick="switchTab('reviews')">詳細診斷 Reviews</button>
+      <button class="nav-btn" onclick="switchTab('suggestions')">優化建議 Suggestions</button>
+      <button class="nav-btn" onclick="switchTab('fixes')">修復程式碼 Fixes</button>
+    </nav>
+  </header>
+
+  <main class="container">
+
+    <!-- Hero Header -->
+    <div class="hero-card">
+      <h1 class="hero-title">全專案自動化腳本審查綜合報告</h1>
+      <p class="hero-subtitle">
+        本報告涵蓋 <code>script-container-docs</code> 專案中全部 8 項 Bash 自動化腳本、VM 封裝工具、Proxmox VE 儲存同步服務及 Docker 容器部署檔之安全性、健壯性、POSIX 規範與邏輯缺陷審查。
+      </p>
+      <div class="hero-meta">
+        <div class="meta-item">審查日期：<span>2026-07-22</span></div>
+        <div class="meta-item">腳本總數：<span>8 個 Bash 腳本 + 1 個 Docker Compose</span></div>
+        <div class="meta-item">對應文檔目錄：<span><a href="01_overview.md" style="color: var(--accent-cyan);">docs/</a></span></div>
+        <div class="meta-item">評估結果：<span style="color: var(--accent-emerald);">已完成完整重構方案</span></div>
+      </div>
+    </div>
+
+    <!-- Metrics Bar -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-header">🔴 高風險缺陷 (Critical)</div>
+        <div class="metric-value" style="color: var(--accent-rose);">5</div>
+        <div class="metric-desc">包含子 Shell 作用域失效、缺少輸入驗證、Machine-ID 破壞</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-header">🟡 中風險缺陷 (Medium)</div>
+        <div class="metric-value" style="color: var(--accent-amber);">6</div>
+        <div class="metric-desc">併發 Race Condition、SSH 阻擋、硬編碼與判斷遺漏</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-header">🟢 低風險優化 (Low)</div>
+        <div class="metric-value" style="color: var(--accent-emerald);">8</div>
+        <div class="metric-desc">Globbing 展開、冗餘代碼、單一網卡提示優化</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-header">📄 產出報告 Markdown</div>
+        <div class="metric-value" style="color: var(--accent-cyan);">4 份</div>
+        <div class="metric-desc">已完全寫入 <code>docs/01~04.md</code></div>
+      </div>
+    </div>
+
+    <!-- TAB 1: DASHBOARD OVERVIEW -->
+    <div id="dashboard" class="tab-content active">
+      
+      <h2 class="section-title">文件導覽 (Markdown Documentation Files)</h2>
+      <div class="docs-grid">
+        <a href="01_overview.md" class="doc-card">
+          <div>
+            <div class="doc-icon">📊</div>
+            <div class="doc-title">01_overview.md</div>
+            <div class="doc-desc">專案腳本總攬、目錄結構分析、審查對象矩陣與等級分類標準。</div>
+          </div>
+          <div class="doc-link">開啟檔案 <span>&rarr;</span></div>
+        </a>
+
+        <a href="02_script_reviews.md" class="doc-card">
+          <div>
+            <div class="doc-icon">🔍</div>
+            <div class="doc-title">02_script_reviews.md</div>
+            <div class="doc-desc">各腳本詳細診斷報告，列出每行問題程式碼、影響與風險分析。</div>
+          </div>
+          <div class="doc-link">開啟檔案 <span>&rarr;</span></div>
+        </a>
+
+        <a href="03_suggestions.md" class="doc-card">
+          <div>
+            <div class="doc-icon">💡</div>
+            <div class="doc-title">03_suggestions.md</div>
+            <div class="doc-desc">系統架構優化建議，包含高強度驗證規範、原子鎖防護與資安標準。</div>
+          </div>
+          <div class="doc-link">開啟檔案 <span>&rarr;</span></div>
+        </a>
+
+        <a href="04_fixes.md" class="doc-card">
+          <div>
+            <div class="doc-icon">🛠️</div>
+            <div class="doc-title">04_fixes.md</div>
+            <div class="doc-desc">腳本重構與修復方案，提供重構後的 Bash 完全可執行原始碼。</div>
+          </div>
+          <div class="doc-link">開啟檔案 <span>&rarr;</span></div>
+        </a>
+      </div>
+
+      <h2 class="section-title">審查腳本速覽矩陣</h2>
+      <div class="script-card" style="margin-bottom: 2rem;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+          <thead>
+            <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-muted);">
+              <th style="padding: 0.75rem 1rem;">腳本名稱 / 路徑</th>
+              <th style="padding: 0.75rem 1rem;">功能類別</th>
+              <th style="padding: 0.75rem 1rem;">支援系統</th>
+              <th style="padding: 0.75rem 1rem;">主要評語 / 問題評估</th>
+              <th style="padding: 0.75rem 1rem;">風險等級</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+              <td style="padding: 0.75rem 1rem; font-family: 'Fira Code'; color: var(--accent-cyan);">Inital-setup/initial-setup.sh</td>
+              <td style="padding: 0.75rem 1rem;">VM 首次開機網路精靈</td>
+              <td style="padding: 0.75rem 1rem;">RHEL 9</td>
+              <td style="padding: 0.75rem 1rem; color: var(--text-muted);">缺乏輸入驗證、nmcli 位置錯位、缺少併發鎖</td>
+              <td style="padding: 0.75rem 1rem;"><span class="badge badge-critical">Critical</span></td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+              <td style="padding: 0.75rem 1rem; font-family: 'Fira Code'; color: var(--accent-cyan);">Seal_RHEL_VM/seal-rhel-template.sh</td>
+              <td style="padding: 0.75rem 1rem;">VM 範本清理工具</td>
+              <td style="padding: 0.75rem 1rem;">RHEL 8/9/10, Rocky</td>
+              <td style="padding: 0.75rem 1rem; color: var(--text-muted);">重寫 /etc/hosts、Machine-ID 格式非法、漏 AlmaLinux</td>
+              <td style="padding: 0.75rem 1rem;"><span class="badge badge-critical">Critical</span></td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+              <td style="padding: 0.75rem 1rem; font-family: 'Fira Code'; color: var(--accent-cyan);">pve_link_iso/Old/pve_link_iso_old.sh</td>
+              <td style="padding: 0.75rem 1rem;">Proxmox ISO 同步 (舊版)</td>
+              <td style="padding: 0.75rem 1rem;">Proxmox VE</td>
+              <td style="padding: 0.75rem 1rem; color: var(--text-muted);">管道 Subshell 變數作用域死結 (COUNT 恆等於 0)</td>
+              <td style="padding: 0.75rem 1rem;"><span class="badge badge-critical">Critical</span></td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+              <td style="padding: 0.75rem 1rem; font-family: 'Fira Code'; color: var(--accent-cyan);">pve_link_iso/pve_link_iso.sh</td>
+              <td style="padding: 0.75rem 1rem;">Proxmox ISO 同步 (現行版)</td>
+              <td style="padding: 0.75rem 1rem;">Proxmox VE</td>
+              <td style="padding: 0.75rem 1rem; color: var(--text-muted);">斷開軟連結判定 Bug、多層同名檔衝突處理</td>
+              <td style="padding: 0.75rem 1rem;"><span class="badge badge-medium">Medium</span></td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+              <td style="padding: 0.75rem 1rem; font-family: 'Fira Code'; color: var(--accent-cyan);">k8s_env_init/k8s_env_initialization.sh</td>
+              <td style="padding: 0.75rem 1rem;">K8s 節點初始化</td>
+              <td style="padding: 0.75rem 1rem;">RHEL / Debian 跨平台</td>
+              <td style="padding: 0.75rem 1rem; color: var(--text-muted);">結構嚴謹，含自我驗證；建議微調 SELinux 設定方式</td>
+              <td style="padding: 0.75rem 1rem;"><span class="badge badge-low">Low</span></td>
+            </tr>
+            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+              <td style="padding: 0.75rem 1rem; font-family: 'Fira Code'; color: var(--accent-cyan);">Container/ollama/docker-compose.yml</td>
+              <td style="padding: 0.75rem 1rem;">Ollama AI 容器配置</td>
+              <td style="padding: 0.75rem 1rem;">Docker Compose</td>
+              <td style="padding: 0.75rem 1rem; color: var(--text-muted);">硬性 GPU 綁定、映像檔使用 floating tag</td>
+              <td style="padding: 0.75rem 1rem;"><span class="badge badge-medium">Medium</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- TAB 2: DETAILED REVIEWS -->
+    <div id="reviews" class="tab-content">
+      <h2 class="section-title">各腳本詳細診斷與漏洞分析</h2>
+
+      <div class="filter-bar">
+        <button class="filter-chip active" onclick="filterReviews('all')">全部標籤 All</button>
+        <button class="filter-chip" onclick="filterReviews('critical')">🔴 Critical</button>
+        <button class="filter-chip" onclick="filterReviews('medium')">🟡 Medium</button>
+        <button class="filter-chip" onclick="filterReviews('low')">🟢 Low</button>
+      </div>
+
+      <div class="script-grid">
+
+        <!-- Item 1 -->
+        <div class="script-card review-item critical">
+          <div class="script-header">
+            <div>
+              <div class="script-path">Inital-setup/initial-setup.sh</div>
+              <div class="script-desc">RHEL 9 首次開機互動式網路與 Hostname 設定腳本</div>
+            </div>
+            <span class="badge badge-critical">Critical</span>
+          </div>
+          <div class="issue-list">
+            <div class="issue-item critical">
+              <div class="issue-title">🔴 1. 完全缺乏輸入格式驗證</div>
+              <div class="issue-detail">未對 IP、Netmask、Gateway、DNS 進行正則與數值範圍檢查，非法輸入會直接導至 NetworkManager 崩潰。</div>
+            </div>
+            <div class="issue-item critical">
+              <div class="issue-title">🔴 2. nmcli 位置參數錯位 Bug</div>
+              <div class="issue-detail">當 Gateway 或 DNS 留空時，帶入 <code>nmcli connection modify</code> 會造成後續參數位置偏移對位失敗。</div>
+            </div>
+            <div class="issue-item medium">
+              <div class="issue-title">🟡 3. 缺乏多終端併發執行鎖 (Multi-TTY Race Condition)</div>
+              <div class="issue-detail">若有多個 root console 併發登入，會同時觸發設定精靈並產生死結競爭。</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Item 2 -->
+        <div class="script-card review-item critical">
+          <div class="script-header">
+            <div>
+              <div class="script-path">Seal_RHEL_VM/seal-rhel-template.sh</div>
+              <div class="script-desc">RHEL VM 範本封裝與機號清理腳本</div>
+            </div>
+            <span class="badge badge-critical">Critical</span>
+          </div>
+          <div class="issue-list">
+            <div class="issue-item critical">
+              <div class="issue-title">🔴 1. 強制覆寫抹除 /etc/hosts</div>
+              <div class="issue-detail"><code>cat > /etc/hosts</code> 會直接刪除管理員預先設定好的自訂域名解析條目。</div>
+            </div>
+            <div class="issue-item critical">
+              <div class="issue-title">🔴 2. Machine-ID 寫入非法字串</div>
+              <div class="issue-detail">寫入 <code>'uninitialized\n'</code> 違背 systemd 32-char 規格，會導致複製出的所有 VM 具有相同的 ID。</div>
+            </div>
+            <div class="issue-item medium">
+              <div class="issue-title">🟡 3. OS 偵測遺漏 AlmaLinux</div>
+              <div class="issue-detail">Case 條件中缺少 <code>almalinux</code>，導致在 AlmaLinux 8/9 系統上會直接中斷退出。</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Item 3 -->
+        <div class="script-card review-item critical">
+          <div class="script-header">
+            <div>
+              <div class="script-path">pve_link_iso/Old/pve_link_iso_old.sh</div>
+              <div class="script-desc">舊版 Proxmox VE ISO 自動符號連結腳本</div>
+            </div>
+            <span class="badge badge-critical">Critical</span>
+          </div>
+          <div class="issue-list">
+            <div class="issue-item critical">
+              <div class="issue-title">🔴 1. 管道 Subshell 變數作用域死結 Bug</div>
+              <div class="issue-detail">將 <code>find</code> 透過 <code>| while read</code> 送入子 Shell，迴圈內累加的 <code>COUNT</code> 在退出後失效，導致印出的統計永遠為 0。</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Item 4 -->
+        <div class="script-card review-item medium">
+          <div class="script-header">
+            <div>
+              <div class="script-path">pve_link_iso/pve_link_iso.sh</div>
+              <div class="script-desc">現行版 Proxmox VE ISO 自動符號連結腳本</div>
+            </div>
+            <span class="badge badge-medium">Medium</span>
+          </div>
+          <div class="issue-list">
+            <div class="issue-item medium">
+              <div class="issue-title">🟡 1. 無效軟連結 (Dangling Symlinks) 判斷 Bug</div>
+              <div class="issue-detail"><code>[ ! -e "$target_file" ]</code> 對於目標已消失的軟連結會回傳 true，但執行 <code>ln -s</code> 會因檔案路徑已存在而失敗。</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Item 5 -->
+        <div class="script-card review-item low">
+          <div class="script-header">
+            <div>
+              <div class="script-path">k8s_env_init/k8s_env_initialization.sh</div>
+              <div class="script-desc">Kubernetes 節點前置環境初始化與驗證腳本</div>
+            </div>
+            <span class="badge badge-low">Low</span>
+          </div>
+          <div class="issue-list">
+            <div class="issue-item low">
+              <div class="issue-title">🟢 1. SELinux 核心關閉優化</div>
+              <div class="issue-detail">結構非常完善；建議將核心硬關閉 <code>selinux=0</code> 改為在 <code>/etc/selinux/config</code> 中設為 permissive。</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TAB 3: SUGGESTIONS -->
+    <div id="suggestions" class="tab-content">
+      <h2 class="section-title">架構與系統優化建議指導方針</h2>
+      <div class="script-card" style="margin-bottom: 2rem;">
+        <h3 style="color: var(--accent-cyan); margin-bottom: 1rem;">💡 六大企業級自動化維運守則</h3>
+        <ol style="margin-left: 1.5rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 1rem;">
+          <li>
+            <strong style="color: #fff;">1. 強制輸入驗證與防呆：</strong>
+            所有接受人機互動或外部變數輸入的腳本，必須經過嚴格正則表達式審查 (IPv4, CIDR, DNS, Hostname)，禁止直接帶入 Shell 命令。
+          </li>
+          <li>
+            <strong style="color: #fff;">2. 原子性互斥鎖 (Atomic Locking)：</strong>
+            在開機初始化或寫入系統層級配置的腳本中，一律引進 <code>mkdir /run/*.lock</code> 互斥鎖，避免多重登入併發破壞系統狀態。
+          </li>
+          <li>
+            <strong style="color: #fff;">3. 檔案精準修剪替代全檔覆寫：</strong>
+            禁止使用 <code>cat > /etc/hosts</code> 等抹除式命令。修改配置應採用 <code>sed</code> 精準替換標的字串，完整保護管理員原本之自訂規則。
+          </li>
+          <li>
+            <strong style="color: #fff;">4. 遵循 systemd 規範處理 Machine-ID：</strong>
+            重置 Machine-ID 應直接刪除檔案或填入 0 位元組空檔，由 systemd 於開機時自動動態生成全新 32 位元 16 進位隨機機號。
+          </li>
+          <li>
+            <strong style="color: #fff;">5. 免除子 Shell (Subshell) 管道作用域陷阱：</strong>
+            在 Bash 統計計數或迴圈中，改用進程替換 <code>while read ... done < <(find ...)</code>，確保變數異動能正確回傳至父層 Shell。
+          </li>
+          <li>
+            <strong style="color: #fff;">6. 容器配置具備高彈性與明確標籤：</strong>
+            避免在 Docker Compose 中使用 <code>latest</code> / <code>main</code> 浮動標籤，並且將硬體 GPU 需求設定為彈性開關。
+          </li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- TAB 4: FIXES & CODE -->
+    <div id="fixes" class="tab-content">
+      <h2 class="section-title">腳本重構與修復程式碼對照</h2>
+      <div class="script-card">
+        <h3 style="color: var(--accent-emerald); margin-bottom: 0.5rem;">重構版 <code>initial-setup.sh</code> 範例預覽</h3>
+        <p class="script-desc">完整的修正原始碼已整理至 <code>docs/04_fixes.md</code> 中，以下為重點驗證與互斥鎖實作：</p>
+
+        <div class="code-box">
+<span class="code-comment"># 1. 原子互斥鎖防護</span>
+LOCK_DIR=<span class="code-string">"/run/initial-setup.lock"</span>
+<span class="code-keyword">if</span> ! <span class="code-function">mkdir</span> <span class="code-string">"$LOCK_DIR"</span> 2>/dev/null; <span class="code-keyword">then</span>
+    <span class="code-function">echo</span> <span class="code-string">"[WARN] Another instance of initial-setup is running. Exiting."</span>
+    <span class="code-keyword">exit</span> 0
+<span class="code-keyword">fi</span>
+<span class="code-function">trap</span> <span class="code-string">'rm -rf "$LOCK_DIR"'</span> EXIT
+
+<span class="code-comment"># 2. 純 Bash 位元運算轉換 CIDR (免 bc 依賴)</span>
+<span class="code-function">mask_to_cidr()</span> {
+    <span class="code-keyword">local</span> mask=$1
+    <span class="code-keyword">local</span> IFS=.
+    <span class="code-keyword">local</span> -a octets
+    <span class="code-function">read</span> -r -a octets <<< <span class="code-string">"$mask"</span>
+    <span class="code-keyword">local</span> bin=<span class="code-string">""</span>
+    <span class="code-keyword">for</span> octet <span class="code-keyword">in</span> <span class="code-string">"${octets[@]}"</span>; <span class="code-keyword">do</span>
+        <span class="code-keyword">local</span> val=$octet b=<span class="code-string">""</span>
+        <span class="code-keyword">for</span> ((i=0; i&lt;8; i++)); <span class="code-keyword">do</span>
+            b=$((val % 2))$b
+            val=$((val / 2))
+        <span class="code-keyword">done</span>
+        bin=<span class="code-string">"$bin$b"</span>
+    <span class="code-keyword">done</span>
+    <span class="code-keyword">local</span> cidr=${bin%%0*}
+    <span class="code-function">echo</span> <span class="code-string">"${#cidr}"</span>
+}
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer>
+    Script Container Docs Audit Summary Dashboard &copy; 2026. Designed for enterprise production safety.
+  </footer>
+
+  <script>
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+      
+      document.getElementById(tabId).classList.add('active');
+      event.currentTarget.classList.add('active');
+    }
+
+    function filterReviews(severity) {
+      document.querySelectorAll('.filter-chip').forEach(el => el.classList.remove('active'));
+      event.currentTarget.classList.add('active');
+
+      document.querySelectorAll('.review-item').forEach(el => {
+        if (severity === 'all') {
+          el.style.display = 'block';
+        } else {
+          if (el.classList.contains(severity)) {
+            el.style.display = 'block';
+          } else {
+            el.style.display = 'none';
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>

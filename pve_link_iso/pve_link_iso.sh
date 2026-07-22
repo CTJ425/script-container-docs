@@ -32,6 +32,7 @@ echo " 完成。"
 # 步驟 2: 尋找所有 .iso 檔案並建立新的符號連結
 echo "正在掃描來源目錄並建立新連結..."
 COUNT=0
+SKIPPED=0
 FAILED=0
 while IFS= read -r -d $'\0' iso_file; do
     filename=$(basename "$iso_file")
@@ -46,7 +47,8 @@ while IFS= read -r -d $'\0' iso_file; do
             ((FAILED+=1))
         fi
     else
-        echo "  -> 已跳過 (目標檔案已存在): $filename"
+        echo "  -> [警告] 已跳過 (目標檔案已存在: $filename)，來源: $iso_file"
+        ((SKIPPED+=1))
     fi
 done < <(
     find "$SOURCE_DIR" \
@@ -58,6 +60,9 @@ done < <(
 
 echo "============================================="
 echo "處理完成！總共建立了 $COUNT 個新的符號連結。"
+if [ "$SKIPPED" -gt 0 ]; then
+    echo "有 $SKIPPED 個 ISO 連結因目標檔案已存在而被跳過。"
+fi
 if [ "$FAILED" -gt 0 ]; then
     echo "有 $FAILED 個 ISO 連結建立失敗，請檢查權限或目標目錄狀態。"
 fi

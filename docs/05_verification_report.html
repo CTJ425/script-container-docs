@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>agy 審查報告驗證與修正結果報告</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1f2430; --muted: #5c6470; --line: #e3e6ea;
+    --card: #f7f8fa; --accent: #2563eb;
+    --ok-bg: #e7f5ec; --ok-fg: #1a7f43;
+    --bad-bg: #fdeaea; --bad-fg: #b3261e;
+    --warn-bg: #fdf3e0; --warn-fg: #99621e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161c; --fg: #e4e7ee; --muted: #9aa3b2; --line: #2b3040;
+      --card: #1c1f29; --accent: #7aa2ff;
+      --ok-bg: #163524; --ok-fg: #6fd398;
+      --bad-bg: #3a1d1c; --bad-fg: #f28b82;
+      --warn-bg: #3a2e17; --warn-fg: #e8bf76;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: "Noto Sans TC", "Microsoft JhengHei", system-ui, -apple-system, sans-serif;
+    line-height: 1.75; font-size: 16px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+  h1 { font-size: 1.7rem; line-height: 1.4; border-bottom: 3px solid var(--accent); padding-bottom: .6rem; }
+  h2 { font-size: 1.3rem; margin-top: 2.5rem; border-left: 5px solid var(--accent); padding-left: .6rem; }
+  .meta { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: .8rem 1.2rem; color: var(--muted); font-size: .92rem; }
+  .meta b { color: var(--fg); }
+  .tablebox { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; margin: 1rem 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 720px; font-size: .92rem; }
+  th, td { border-bottom: 1px solid var(--line); padding: .55rem .8rem; text-align: left; vertical-align: top; }
+  th { background: var(--card); white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  code { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: .1rem .35rem; font-size: .88em; font-family: "Cascadia Code", Consolas, monospace; }
+  .badge { display: inline-block; border-radius: 999px; padding: .05rem .6rem; font-size: .82rem; white-space: nowrap; font-weight: 600; }
+  .ok   { background: var(--ok-bg);   color: var(--ok-fg); }
+  .bad  { background: var(--bad-bg);  color: var(--bad-fg); }
+  .warn { background: var(--warn-bg); color: var(--warn-fg); }
+  .summary { background: var(--card); border: 1px solid var(--line); border-left: 5px solid var(--accent); border-radius: 8px; padding: 1rem 1.3rem; }
+  ul, ol { padding-left: 1.4rem; }
+  .lesson li { margin-bottom: .4rem; }
+  footer { margin-top: 3rem; color: var(--muted); font-size: .85rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>agy 審查報告驗證與修正結果報告</h1>
+<div class="meta">
+  <b>建立時間</b>：2026-07-22　｜　<b>對照文件</b>：docs/01～04（agy 原始報告，保留未動）<br>
+  <b>工作流程</b>：agy (Antigravity/Gemini) 審查 → Claude 逐項驗證裁決 → agy 依核准規格修改 → Claude 獨立 code review 與實測
+</div>
+
+<h2>1. 總體結論</h2>
+<div class="summary">
+  agy 的原始報告<b>約六成可信</b>：低風險項目多數屬實，但其標為 High/Critical 的四項中有<b>三項為誤報</b>，
+  且 agy 將封存舊版腳本（<code>Inital-setup/</code>、<code>Seal_RHEL_VM/</code>、<code>pve_link_iso/Old/</code>）當作現行版本審查，
+  多項「Critical 修正建議」實際上早已在 <code>RHEL-Family-Temp/</code> 現行版本中實作完成。<br><br>
+  本次處置：採納 6 項真實問題交由 agy 修改，駁回 3 項誤報與 4 項設計性建議，並刪除封存舊腳本以杜絕後續誤審。
+  所有修改均經獨立語法檢查、回歸實測與外部 registry 查證。
+</div>
+
+<h2>2. agy 原報告逐項裁決</h2>
+<div class="tablebox">
+<table>
+<tr><th>#</th><th>agy 發現</th><th>agy 評級</th><th>裁決</th><th>理由與處置</th></tr>
+<tr><td>1.1</td><td>舊版 initial-setup 缺輸入驗證</td><td>🔴 High</td><td><span class="badge warn">屬實但錯置</span></td><td>屬實，但該檔為封存舊版；RHEL-Family-Temp 後繼版早已有完整驗證。處置：刪除舊版目錄</td></tr>
+<tr><td>1.2</td><td>nmcli 位置參數錯位</td><td>🔴 High</td><td><span class="badge bad">誤報</span></td><td>變數皆有引號，空值展開為空字串參數而非錯位；<code>ipv4.gateway ""</code> 是 nmcli 合法清除語法。agy 自己的「修正版」else 分支同樣傳 <code>ipv4.gateway ""</code>，行為與原始碼一致</td></tr>
+<tr><td>1.3</td><td>缺併發執行鎖</td><td>🟡 Medium</td><td><span class="badge ok">採納</span></td><td>已加入 <code>mkdir /run/initial-setup.lock</code> 原子鎖 + EXIT trap 清理</td></tr>
+<tr><td>1.4</td><td>hostname 未同步 /etc/hosts</td><td>🟡 Medium</td><td><span class="badge warn">誇大</span></td><td>RHEL 9 nsswitch 預設含 myhostname 模組，「數十秒 sudo 延遲」不成立；現行版已含 hosts 同步（本次進一步修其匹配 bug，見 4.3）</td></tr>
+<tr><td>1.5</td><td>單網卡仍重複詢問</td><td>🟢 Low</td><td><span class="badge ok">採納</span></td><td>已改為自動選取並顯示提示（與 repo 內第四輪 CODE_REVIEW_REPORT 建議一致）</td></tr>
+<tr><td>2.1</td><td>SSH_TTY 檢查阻擋 SSH 觸發</td><td>🟡 Medium</td><td><span class="badge bad">不採納</span></td><td>刻意設計：透過 SSH 執行改 IP 精靈會在套用時斷線，留下半套用設定、未建旗標檔與殘留鎖。維持僅 Console 觸發</td></tr>
+<tr><td>2.2</td><td>硬編碼路徑／未檢查執行權限</td><td>🟢 Low</td><td><span class="badge bad">不採納</span></td><td>實際錯誤為 permission denied 而非「語法錯誤」；seal 安裝流程已 <code>chmod +x</code>，價值極低</td></tr>
+<tr><td>3.1</td><td>seal 覆寫破壞 /etc/hosts</td><td>🔴 High</td><td><span class="badge warn">已修正在先</span></td><td>僅存在於封存的 Seal_RHEL_VM 舊版；RHEL-Family-Temp 現行版早已改用 sed 精準移除 hostname。處置：刪除舊版目錄</td></tr>
+<tr><td>3.2</td><td>machine-id 寫入 <code>uninitialized</code> 非法</td><td>🔴 High</td><td><span class="badge bad">誤報</span></td><td><code>machine-id(5)</code> 官方文件明載：內容 <code>uninitialized\n</code> 觸發 systemd 完整 first-boot 語意（systemd ≥ 247，即 RHEL 9/10）。該字串非合法 hex-32，systemd 必定重新產生，「所有 VM 機號相同」不成立。僅微調 RHEL 8 分支（systemd 239）改為空檔</td></tr>
+<tr><td>3.3</td><td>未含 AlmaLinux 會 die</td><td>🟡 Medium</td><td><span class="badge bad">誤報</span></td><td>AlmaLinux 的 <code>ID_LIKE="rhel centos fedora"</code> 會被 <code>*" rhel "*</code> 命中，實際可通過。仍顯式加入 almalinux 作為文件化</td></tr>
+<tr><td>3.4</td><td>history 清理命令冗餘</td><td>🟢 Low</td><td><span class="badge warn">已修正在先</span></td><td>僅存在於封存舊版；現行版已移除該行，且額外提示登出時 history 回寫風險</td></tr>
+<tr><td>4.1</td><td>validate_dns 未引號展開</td><td>🟢 Low</td><td><span class="badge bad">不採納</span></td><td>現行碼已有 <code>local -; set -f</code> 防護；agy「修正版」改用 <code>local -f</code> 反而是錯誤語法，會引入新 bug</td></tr>
+<tr><td>4.2</td><td>DNS 首尾空白未 trim</td><td>🟢 Low</td><td><span class="badge ok">採納</span></td><td>已以參數展開補上 trim</td></tr>
+<tr><td>4.3</td><td>/etc/hosts 子字串誤匹配與累積</td><td>🟢 Low</td><td><span class="badge ok">採納</span></td><td>真 bug（相似字首如 myhost-prod 會使 myhost 漏加）。已改 word-boundary sed 移除舊名 + 錨定匹配後追加</td></tr>
+<tr><td>5.1</td><td>舊版 pve 腳本管道子 Shell 計數恆 0</td><td>🔴 High</td><td><span class="badge warn">屬實但錯置</span></td><td>屬實，但該檔在 Old/ 封存目錄，現行版早已用行程替代修正。處置：刪除封存目錄</td></tr>
+<tr><td>5.2</td><td>dangling symlink 導致 ln 失敗</td><td>🔴 High</td><td><span class="badge bad">誤報</span></td><td>步驟 1 已先 <code>find -maxdepth 1 -type l -iname "*.iso" -delete</code> 清除所有（含失效）ISO 連結，判斷時不可能殘留 dangling symlink</td></tr>
+<tr><td>5.3</td><td>同名 ISO 被跳過</td><td>🟡 Medium</td><td><span class="badge ok">採納（部分）</span></td><td>屬實，但「無聲跳過」說法錯誤（原本即有訊息）。已改明確警告（含完整來源路徑）+ 獨立 SKIPPED 計數</td></tr>
+<tr><td>6-1</td><td>SELinux 應改用 /etc/selinux/config</td><td>—</td><td><span class="badge bad">不採納</span></td><td><code>grubby --args selinux=0</code> 是 RHEL 9 官方文件記載的停用方式，且腳本 verify 邏輯與之配套；permissive 僅為另一風格選擇，非缺陷</td></tr>
+<tr><td>6-2</td><td>fstab 備份被重複執行覆寫</td><td>🟢 Low</td><td><span class="badge warn">屬實未採</span></td><td>影響極小（備份仍為冪等修改後版本），暫不處理</td></tr>
+<tr><td>7.1</td><td>GPU 硬性綁定</td><td>🟡 Medium</td><td><span class="badge ok">採納</span></td><td>主檔維持 GPU 預設，新增 docker-compose.cpu.yml override（<code>deploy: !reset {}</code>，需 Compose ≥ v2.24）</td></tr>
+<tr><td>7.2</td><td>浮動映像 tag</td><td>🟢 Low</td><td><span class="badge ok">採納（修正版本）</span></td><td>採納鎖版，但 agy 修正版給的 0.5.7 / 0.5.9 為過時版本，已改由即時查詢 registry 取得當前版本</td></tr>
+</table>
+</div>
+<p>另注意：agy 總覽表聲稱 <code>RHEL-Family-Temp/seal-rhel-template.sh</code> 有 3 項低風險問題，但 <code>02_script_reviews.md</code> 全文未提供任何細節——該項為報告的未兌現聲明。</p>
+
+<h2>3. 本次實際修改內容</h2>
+<div class="tablebox">
+<table>
+<tr><th>檔案</th><th>變更</th></tr>
+<tr><td><code>RHEL-Family-Temp/initial-setup.sh</code></td><td>① 原子併發鎖 + EXIT trap　② 單網卡自動選取　③ DNS trim　④ hosts word-boundary 移除舊名 + 錨定追加新名</td></tr>
+<tr><td><code>RHEL-Family-Temp/seal-rhel-template.sh</code></td><td>① detect_os 顯式加入 almalinux　② RHEL 8 分支 machine-id 改空檔 + chmod 644（9/10 維持 uninitialized 不變）　③ 內嵌 initial-setup 副本同步上述四項修改</td></tr>
+<tr><td><code>pve_link_iso/pve_link_iso.sh</code></td><td>同名 ISO 跳過改為警告（含完整來源路徑）+ SKIPPED 計數 + 總結列印</td></tr>
+<tr><td><code>Container/ollama/docker-compose.yml</code></td><td>鎖定 <code>ollama/ollama:0.32.2</code>、<code>ghcr.io/open-webui/open-webui:v0.10.2</code>；加入 CPU 用法註解</td></tr>
+<tr><td><code>Container/ollama/docker-compose.cpu.yml</code></td><td><b>新增</b>：CPU-only override（<code>deploy: !reset {}</code>），註明需 Compose ≥ v2.24</td></tr>
+<tr><td><code>Inital-setup/</code>、<code>Seal_RHEL_VM/</code>、<code>pve_link_iso/Old/</code></td><td><b>待刪除</b>（見第 5 節）</td></tr>
+</table>
+</div>
+<p>修改執行者：agy（依 Claude 核准之精確規格，含明確禁止事項清單）。</p>
+
+<h2>4. Claude 獨立驗證結果（不採信 agy 自報）</h2>
+<div class="tablebox">
+<table>
+<tr><th>驗證項目</th><th>方法</th><th>結果</th></tr>
+<tr><td>變更範圍</td><td>git status / git diff 逐檔比對規格</td><td><span class="badge ok">通過</span> 僅規格內 4 檔 + 1 新檔；99-firstboot.sh、k8s、docs 均未被觸碰</td></tr>
+<tr><td>禁止事項</td><td>diff 檢查</td><td><span class="badge ok">通過</span> SSH_TTY 檢查保留、RHEL 9/10 machine-id 未動、<code>local -</code> 寫法保留</td></tr>
+<tr><td>語法</td><td>bash -n × 3 個腳本</td><td><span class="badge ok">通過</span> 全數通過</td></tr>
+<tr><td>內嵌副本一致性</td><td>抽出 heredoc 內容與獨立版 diff</td><td><span class="badge ok">通過</span> 逐位元一致</td></tr>
+<tr><td>hosts 邏輯回歸測試</td><td>假 hosts 檔實測 5 情境 + DNS trim</td><td><span class="badge ok">通過</span> 功能全過（僅行內多重空格塌縮為單一空格之外觀差異）</td></tr>
+<tr><td>舊版 bug 回歸案例</td><td>myhost-prod → myhost 情境（舊碼會漏加）</td><td><span class="badge ok">通過</span> 新碼正確處理</td></tr>
+<tr><td>image tag 真實性</td><td>Docker Hub API / GHCR manifest / GitHub Releases 即時查詢</td><td><span class="badge ok">通過</span> ollama:0.32.2 為當前最新穩定版（2026-07-22 推送）；open-webui:v0.10.2 為最新正式版（2026-07-01 發布）</td></tr>
+<tr><td>Compose 合併驗證</td><td>docker compose config（主檔、主檔 + CPU override）</td><td><span class="badge ok">通過</span> 合併後 deploy/nvidia 完全移除；本機 Compose v5.3.1 支援 !reset</td></tr>
+</table>
+</div>
+<p><b>Review 附加發現與處置</b>：<code>!reset</code> 需 Compose ≥ v2.24，已在 <code>docker-compose.cpu.yml</code> 加註（Claude 直接補上）。</p>
+
+<h2>5. 遺留事項</h2>
+<ol>
+  <li><b>封存舊腳本刪除</b>：<code>git rm -r Inital-setup Seal_RHEL_VM pve_link_iso/Old</code> 需由管理員手動執行（自動化執行被權限控管攔截）。</li>
+  <li><b>README.md 清理</b>：舊目錄刪除後，README 中 Inital-setup 與 Seal_RHEL_VM 的快速連結與模組說明段落需一併移除。</li>
+  <li>k8s_env_init 的 fstab 備份覆寫（6-2）留待日後（可改為 <code>cp -n</code> 保留首次備份）。</li>
+</ol>
+
+<h2>6. 經驗教訓</h2>
+<ul class="lesson">
+  <li><b>AI 審查報告需逐項對照原始碼驗證</b>：本案 High 級別發現的誤報率為 3/4。</li>
+  <li><b>封存舊版與現行版混雜會誤導審查</b>：agy 對舊版提出的 Critical 修正多數已存在於現行版——刪除封存目錄可根治。</li>
+  <li><b>AI 提供的「修正代碼」不可整段照抄</b>：agy 修正版含 <code>local -f</code> 語法錯誤、過時的映像版本號，以及與被修正原始碼行為完全相同的「修復」（nmcli 空值處理）。</li>
+</ul>
+
+<footer>Claude Code 驗證報告 · 2026-07-22 · 對應 Markdown 版本：docs/05_verification_report.md</footer>
+</div>
+</body>
+</html>

@@ -29,6 +29,12 @@ if [ "$(id -u)" -ne 0 ]; then
     fail "This script must be run as root."
 fi
 
+if ! mkdir /run/initial-setup.lock 2>/dev/null; then
+    echo "Warning: Another instance of initial-setup is running." >&2
+    exit 0
+fi
+trap 'rm -rf /run/initial-setup.lock' EXIT
+
 if ! command -v nmcli >/dev/null 2>&1; then
     fail "nmcli command not found. Please install/enable NetworkManager."
 fi
@@ -158,11 +164,8 @@ device_count=${#devices[@]}
 if [ "$device_count" -eq 0 ]; then
     fail "No ethernet devices found. Aborting."
 elif [ "$device_count" -eq 1 ]; then
-    default_device=${devices[0]}
-    read -r -e -p "Select device to edit [$default_device]: " ch_device
-    if [ -z "$ch_device" ]; then
-        ch_device="$default_device"
-    fi
+    ch_device="${devices[0]}"
+    echo "Only one ethernet device found. Auto-selected '$ch_device'."
 else
     echo "Multiple ethernet devices found. Please choose one:"
     select device in "${devices[@]}"; do
@@ -267,6 +270,8 @@ while true; do
     if validate_dns "$dns4"; then
         # 轉換為標準以空白分隔的格式以利 nmcli 解析
         dns4=$(echo "$dns4" | tr ',' ' ' | tr -s ' ')
+        dns4="${dns4#"${dns4%%[![:space:]]*}"}"
+        dns4="${dns4%"${dns4##*[![:space:]]}"}"
         break
     else
         echo "Error: Invalid DNS IP format. Please try again."
@@ -319,7 +324,10 @@ echo ""
 echo "===== Start change hostname ====="
 run_or_fail hostnamectl set-hostname "$hostname_edit"
 # 在 /etc/hosts 追加新主機名稱對應
-if ! grep -q " $hostname_edit" /etc/hosts; then
+if [ -n "$current_hostname" ]; then
+    sed -i -E "/^127\.0\.0\.1/s/([[:space:]]+)${current_hostname}([[:space:]]|$)/\2/g" /etc/hosts
+fi
+if ! grep -qE "^127\.0\.0\.1.*[[:space:]]${hostname_edit}([[:space:]]|$)" /etc/hosts; then
     sed -i "/^127.0.0.1/s/$/ $hostname_edit/" /etc/hosts
 fi
 echo "Hostname has been set to: $hostname_edit"
